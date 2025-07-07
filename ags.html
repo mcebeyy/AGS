@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="tr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGS 2025 İnteraktif Rehber (Gemini Destekli)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: A thematic single-page scrolling application with a sticky top navigation bar. The structure prioritizes user understanding by starting with a high-level overview and key info cards, followed by an interactive comparison tool to clarify common confusions (AGS vs. KPSS/MSÜ). It then visually breaks down the exam structure and scoring with an interactive chart and process diagrams. The application concludes with actionable preparation advice, now enhanced with a Gemini-powered personalized plan generator. This user-centric flow is more intuitive than the report's linear structure, guiding the user from general understanding to specific details and finally to preparation steps. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Key stats (date, sessions, purpose) -> Goal: Inform -> Viz/Method: HTML/Tailwind info cards -> Interaction: Static -> Justification: Provides immediate, scannable key takeaways.
+        - Report Info: AGS vs. KPSS & MSÜ -> Goal: Compare -> Viz/Method: Interactive tabs (HTML/JS) -> Interaction: Click to switch views -> Justification: Saves space and actively engages the user in comparing different exams, clarifying a major point of confusion.
+        - Report Info: Scoring weights (Branş vs. Yabancı Dil) -> Goal: Compare/Inform -> Viz/Method: Chart.js Doughnut Chart -> Interaction: Buttons update chart data -> Justification: Visually and dynamically demonstrates the 50/50 score weighting, making it far more impactful than a static table.
+        - Report Info: Atama Süreci (Exam -> Academy -> Appointment) -> Goal: Organize/Process -> Viz/Method: HTML/CSS step-flow diagram -> Interaction: Static -> Justification: Simplifies the multi-step appointment process into a clear, easy-to-follow visual path.
+        - New Feature: Personalized Study Plan -> Goal: Guide/Personalize -> Viz/Method: Gemini API Call -> Interaction: User inputs data, clicks button -> Justification: Provides immense value by transforming static advice into a dynamic, personalized action plan.
+        - New Feature: Sample Question Generation -> Goal: Practice/Engage -> Viz/Method: Gemini API Call -> Interaction: User clicks button per topic -> Justification: Increases engagement and provides immediate, topic-specific practice opportunities.
+        - All choices are designed to transform dense text into understandable and engaging interactive components. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        .nav-link {
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #0d9488; /* teal-600 */
+            border-bottom-color: #0d9488;
+        }
+        .tab-button.active {
+            background-color: #0d9488; /* teal-600 */
+            color: white;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #0d9488; /* Teal */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #gemini-plan-result {
+            white-space: pre-wrap;
+            background-color: #f1f5f9;
+            border-left: 4px solid #0d9488;
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-teal-700">AGS 2025 Rehberi ✨</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#genel-bakis" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Genel Bakış</a>
+                        <a href="#karsilastirma" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Karşılaştırma</a>
+                        <a href="#sinav-yapisi" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Sınav Yapısı</a>
+                        <a href="#puanlama" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Puanlama ve Atama</a>
+                        <a href="#hazirlik" class="nav-link px-3 py-2 rounded-md text-sm font-medium">Hazırlık Stratejisi</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <select id="mobile-nav" class="bg-white border border-slate-300 rounded-md p-2 text-sm">
+                        <option value="#genel-bakis">Genel Bakış</option>
+                        <option value="#karsilastirma">Karşılaştırma</option>
+                        <option value="#sinav-yapisi">Sınav Yapısı</option>
+                        <option value="#puanlama">Puanlama ve Atama</option>
+                        <option value="#hazirlik">Hazırlık Stratejisi</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="genel-bakis" class="py-16 sm:py-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h2 class="text-3xl font-bold tracking-tight text-teal-800 sm:text-4xl">Öğretmenlikte Yeni Dönem: Akademi Giriş Sınavı (AGS)</h2>
+                <p class="mt-4 max-w-3xl mx-auto text-lg leading-7 text-slate-600">Bu rehber, öğretmen atama sistemini kökten değiştiren AGS'yi ve Millî Eğitim Akademisi'ne giden yolu anlamanız için tasarlanmış interaktif bir kaynaktır.</p>
+                
+                <div class="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="bg-white p-6 rounded-xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        <h3 class="text-lg font-semibold text-teal-700">Sınav Tarihi</h3>
+                        <p class="mt-2 text-3xl font-bold">13</p>
+                        <p class="text-slate-500">Temmuz 2025 Pazar</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        <h3 class="text-lg font-semibold text-teal-700">Temel Amaç</h3>
+                        <p class="mt-2 text-md font-medium text-slate-800">Millî Eğitim Akademisi'ne aday seçimi</p>
+                        <p class="mt-1 text-sm text-slate-500">Mülakat kaldırıldı</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        <h3 class="text-lg font-semibold text-teal-700">AGS Oturumu</h3>
+                        <p class="mt-2 text-3xl font-bold">80</p>
+                        <p class="text-slate-500">Soru / 110 Dakika</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+                        <h3 class="text-lg font-semibold text-teal-700">ÖABT Oturumu</h3>
+                        <p class="mt-2 text-3xl font-bold">50</p>
+                        <p class="text-slate-500">Soru / 70-90 Dakika</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="karsilastirma" class="py-16 sm:py-20 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold tracking-tight text-teal-800 sm:text-4xl">Sınav Karşılaştırması</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg leading-7 text-slate-600">AGS, öğretmen adayları için yeni bir sınav olduğundan, mevcut sınavlarla karıştırılması olasıdır. Bu bölümde, kafa karışıklığını gidermek amacıyla AGS'nin diğer sınavlarla temel farklarını interaktif olarak karşılaştırabilirsiniz.</p>
+                </div>
+                
+                <div class="mt-10 max-w-4xl mx-auto">
+                    <div class="flex justify-center space-x-2 sm:space-x-4 rounded-lg bg-slate-100 p-2">
+                        <button id="btn-kpss" class="tab-button w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md transition">AGS vs. KPSS</button>
+                        <button id="btn-msu" class="tab-button w-full sm:w-auto px-4 py-2 text-sm font-semibold rounded-md transition">AGS vs. MSÜ</button>
+                    </div>
+
+                    <div id="kpss-comparison" class="comparison-content mt-8">
+                        <div class="grid md:grid-cols-2 gap-8">
+                            <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                                <h3 class="text-xl font-bold text-teal-700">AGS</h3>
+                                <ul class="mt-4 space-y-3 text-slate-600">
+                                    <li class="flex items-start"><span class="text-teal-500 mr-2 mt-1">🎯</span><strong>Hedef Kitle:</strong> Yalnızca öğretmen adayları.</li>
+                                    <li class="flex items-start"><span class="text-teal-500 mr-2 mt-1">🏛️</span><strong>Amaç:</strong> Millî Eğitim Akademisi'ne giriş için mesleki yeterliliği ölçmek.</li>
+                                    <li class="flex items-start"><span class="text-teal-500 mr-2 mt-1">🔄</span><strong>Durum:</strong> KPSS-GYGK ve Eğitim Bilimleri'nin yerini aldı.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                                <h3 class="text-xl font-bold text-slate-700">KPSS</h3>
+                                <ul class="mt-4 space-y-3 text-slate-600">
+                                    <li class="flex items-start"><span class="text-slate-500 mr-2 mt-1">👥</span><strong>Hedef Kitle:</strong> Tüm kamu personeli adayları.</li>
+                                    <li class="flex items-start"><span class="text-slate-500 mr-2 mt-1">🏢</span><strong>Amaç:</strong> Devlet memurluğu için genel bilgi ve yeteneği ölçmek.</li>
+                                    <li class="flex items-start"><span class="text-slate-500 mr-2 mt-1">➡️</span><strong>Durum:</strong> Diğer memur alımları için devam ediyor.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="msu-comparison" class="comparison-content mt-8 hidden">
+                        <div class="grid md:grid-cols-2 gap-8">
+                            <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                                <h3 class="text-xl font-bold text-teal-700">AGS (Akademi Giriş Sınavı)</h3>
+                                <ul class="mt-4 space-y-3 text-slate-600">
+                                    <li class="flex items-start"><span class="text-teal-500 mr-2 mt-1">🏫</span><strong>Amaç:</strong> Öğretmen olmak.</li>
+                                    <li class="flex items-start"><span class="text-teal-500 mr-2 mt-1"> ministère</span><strong>Bakanlık:</strong> Millî Eğitim Bakanlığı (MEB).</li>
+                                    <li class="flex items-start"><span class="text-teal-500 mr-2 mt-1">🛤️</span><strong>Süreç:</strong> Sınav → Akademi Eğitimi → Atama.</li>
+                                </ul>
+                            </div>
+                            <div class="bg-slate-50 p-6 rounded-lg border border-slate-200">
+                                <h3 class="text-xl font-bold text-slate-700">MSÜ (Millî Savunma Üniversitesi Sınavı)</h3>
+                                <ul class="mt-4 space-y-3 text-slate-600">
+                                    <li class="flex items-start"><span class="text-slate-500 mr-2 mt-1">⚔️</span><strong>Amaç:</strong> Subay/Astsubay olmak.</li>
+                                    <li class="flex items-start"><span class="text-slate-500 mr-2 mt-1">🛡️</span><strong>Bakanlık:</strong> Millî Savunma Bakanlığı (MSB).</li>
+                                    <li class="flex items-start"><span class="text-slate-500 mr-2 mt-1">🛤️</span><strong>Süreç:</strong> MSÜ → YKS → Fiziki Testler/Mülakat.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="sinav-yapisi" class="py-16 sm:py-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold tracking-tight text-teal-800 sm:text-4xl">Sınav Günü ve Yapısı</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg leading-7 text-slate-600">AGS, 13 Temmuz 2025 Pazar günü iki ayrı oturumda gerçekleştirilecektir. Bu bölüm, sınavın anatomisini, içeriğini ve yapay zeka destekli soru üreticiyle pratik yapma imkanını sunmaktadır.</p>
+                </div>
+
+                <div class="mt-12 grid md:grid-cols-2 gap-12 items-start">
+                    <div class="text-center">
+                        <div class="p-4 bg-teal-500 text-white rounded-full w-24 h-24 flex flex-col items-center justify-center mx-auto shadow-lg">
+                            <span class="font-bold text-2xl">10:15</span>
+                            <span class="text-xs">Başlangıç</span>
+                        </div>
+                        <h3 class="mt-4 text-xl font-bold">1. Oturum: AGS (80 Soru)</h3>
+                        <ul class="mt-4 text-left text-sm space-y-2 mx-auto max-w-sm">
+                            <li class="flex justify-between items-center p-2 bg-slate-100 rounded-md"><span>Sözel ve Sayısal Beceri</span> <button class="generate-question-btn text-xs bg-teal-600 text-white px-2 py-1 rounded-md hover:bg-teal-700 transition" data-topic="Sözel ve Sayısal Beceri">✨ Soru Üret</button></li>
+                            <li class="flex justify-between items-center p-2 bg-slate-100 rounded-md"><span>Tarih ve Coğrafya</span> <button class="generate-question-btn text-xs bg-teal-600 text-white px-2 py-1 rounded-md hover:bg-teal-700 transition" data-topic="Tarih ve Coğrafya">✨ Soru Üret</button></li>
+                            <li class="flex justify-between items-center p-2 bg-slate-100 rounded-md"><span>Eğitimin Temelleri</span> <button class="generate-question-btn text-xs bg-teal-600 text-white px-2 py-1 rounded-md hover:bg-teal-700 transition" data-topic="Eğitimin Temelleri">✨ Soru Üret</button></li>
+                            <li class="flex justify-between items-center p-2 bg-slate-100 rounded-md"><span>Güncel Bilgiler</span> <button class="generate-question-btn text-xs bg-teal-600 text-white px-2 py-1 rounded-md hover:bg-teal-700 transition" data-topic="Güncel Bilgiler">✨ Soru Üret</button></li>
+                            <li class="flex justify-between items-center p-2 bg-slate-100 rounded-md"><span>Eğitim Mevzuatı</span> <button class="generate-question-btn text-xs bg-teal-600 text-white px-2 py-1 rounded-md hover:bg-teal-700 transition" data-topic="Eğitim Mevzuatı">✨ Soru Üret</button></li>
+                        </ul>
+                    </div>
+                    <div class="text-center">
+                        <div class="p-4 bg-amber-500 text-white rounded-full w-24 h-24 flex flex-col items-center justify-center mx-auto shadow-lg">
+                            <span class="font-bold text-2xl">14:45</span>
+                            <span class="text-xs">Başlangıç</span>
+                        </div>
+                        <h3 class="mt-4 text-xl font-bold">2. Oturum: ÖABT (50 Soru)</h3>
+                        <p class="mt-4 text-sm mx-auto max-w-xs text-slate-600">Adayın öğretmenlik yapacağı branşa özgü derinlemesine alan bilgisini ölçer. (Tüm branşlar için uygulanmaz).</p>
+                        <button class="generate-question-btn mt-4 text-sm bg-amber-600 text-white px-3 py-2 rounded-md hover:bg-amber-700 transition" data-topic="Öğretmenlik Alan Bilgisi Testi (ÖABT) için genel bir pedagojik formasyon sorusu">✨ Örnek ÖABT Sorusu Üret</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="puanlama" class="py-16 sm:py-20 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
+                    <div>
+                        <h2 class="text-3xl font-bold tracking-tight text-teal-800 sm:text-4xl">Puanlama ve Atama Yolu</h2>
+                        <p class="mt-4 text-lg leading-7 text-slate-600">Akademiye yerleştirmede kullanılacak nihai puan, öğretmenlik alanınıza göre farklı bileşenlerin %50-%50 ağırlıkla birleştirilmesiyle hesaplanır. Mülakat tamamen kaldırılmıştır. Hangi öğretmen kategorisine ait olduğunuzu seçerek puan dağılımını interaktif olarak görüntüleyin.</p>
+                        
+                        <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                           <button id="btn-brans" class="score-button w-full sm:w-auto flex-1 text-center px-4 py-2 text-sm font-semibold rounded-md transition border-2 border-teal-600 bg-teal-600 text-white">Branş Öğretmenliği</button>
+                           <button id="btn-dil" class="score-button w-full sm:w-auto flex-1 text-center px-4 py-2 text-sm font-semibold rounded-md transition border-2 border-teal-600 text-teal-600">Yabancı Dil Öğretmenliği</button>
+                        </div>
+                    </div>
+                    <div class="mt-10 lg:mt-0">
+                        <div class="chart-container">
+                            <canvas id="puanlamaChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-20">
+                    <h3 class="text-2xl font-bold text-center text-slate-800">Sınav Sonrası Atama Süreci</h3>
+                    <div class="mt-8 grid md:grid-cols-3 gap-4 text-center">
+                        <div class="flex items-center flex-col md:flex-row">
+                           <div class="bg-white p-6 rounded-xl shadow-md border w-full h-full">
+                                <div class="text-3xl mb-2">1️⃣</div>
+                                <h4 class="font-bold text-lg">Sınav ve Sıralama</h4>
+                                <p class="text-sm text-slate-500 mt-1">AGS ve ÖABT/YDS puanları ile branş sıralaması oluşturulur.</p>
+                           </div>
+                           <div class="text-slate-400 text-4xl mx-4 my-4 md:my-0 transform md:rotate-0 rotate-90">→</div>
+                        </div>
+                        <div class="flex items-center flex-col md:flex-row">
+                           <div class="bg-white p-6 rounded-xl shadow-md border w-full h-full">
+                                <div class="text-3xl mb-2">2️⃣</div>
+                                <h4 class="font-bold text-lg">Akademiye Kabul</h4>
+                                <p class="text-sm text-slate-500 mt-1">Kontenjan dahilinde en yüksek puanlı adaylar Akademi'ye kabul edilir.</p>
+                           </div>
+                           <div class="text-slate-400 text-4xl mx-4 my-4 md:my-0 transform md:rotate-0 rotate-90">→</div>
+                        </div>
+                         <div class="bg-white p-6 rounded-xl shadow-md border w-full h-full">
+                            <div class="text-3xl mb-2">3️⃣</div>
+                            <h4 class="font-bold text-lg">Atama</h4>
+                            <p class="text-sm text-slate-500 mt-1">Akademi eğitimini başarıyla tamamlayanlar öğretmen olarak atanır.</p>
+                       </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="hazirlik" class="py-16 sm:py-20">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold tracking-tight text-teal-800 sm:text-4xl">✨ Kişisel Hazırlık Stratejiniz</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg leading-7 text-slate-600">Genel tavsiyeler yerine, size özel bir yol haritası çizelim. Aşağıdaki bilgileri doldurun, yapay zeka sizin için kişiselleştirilmiş bir çalışma planı oluştursun.</p>
+                </div>
+                <div class="mt-10 bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="weak-subjects" class="block text-sm font-medium text-slate-700">Zorlandığınız Konular (virgülle ayırın)</label>
+                            <input type="text" id="weak-subjects" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm" placeholder="Örn: Eğitim Mevzuatı, Sayısal Beceri">
+                        </div>
+                        <div>
+                            <label for="study-hours" class="block text-sm font-medium text-slate-700">Haftalık Çalışma Süreniz (saat)</label>
+                            <input type="number" id="study-hours" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm" placeholder="Örn: 15">
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <button id="generate-plan-btn" class="w-full flex items-center justify-center rounded-md border border-transparent bg-teal-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-teal-700 transition">
+                            ✨ Kişisel Planımı Oluştur
+                        </button>
+                    </div>
+                    <div id="gemini-loader" class="hidden mt-6 flex justify-center">
+                        <div class="loader"></div>
+                    </div>
+                    <div id="gemini-plan-result" class="hidden mt-6 p-4 rounded-md font-mono text-sm"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <!-- Modal for Generated Question -->
+    <div id="question-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full">
+            <h3 class="text-lg font-bold text-teal-800 mb-4" id="question-modal-title">✨ Örnek Soru</h3>
+            <div id="question-modal-content" class="text-slate-700 space-y-4" style="white-space: pre-wrap;"></div>
+            <div class="mt-6 text-right">
+                <button id="close-modal-btn" class="bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 transition">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+
+    <footer class="bg-slate-800 text-white">
+        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center text-sm text-slate-400">
+            <p>&copy; 2024 AGS İnteraktif Rehber. Tüm bilgiler, 2025 yılı için yapılan resmi açıklamalara dayanmaktadır.</p>
+            <p>Yapay zeka özellikleri Gemini tarafından desteklenmektedir.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Chart.js Logic
+            const chartData = {
+                brans: { labels: ['AGS Puanı', 'ÖABT Puanı'], data: [50, 50], backgroundColor: ['#14b8a6', '#f59e0b'] },
+                dil: { labels: ['AGS Puanı', 'YDS/e-YDS Puanı'], data: [50, 50], backgroundColor: ['#14b8a6', '#84cc16'] }
+            };
+            const ctx = document.getElementById('puanlamaChart').getContext('2d');
+            const puanlamaChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.brans.labels,
+                    datasets: [{ data: chartData.brans.data, backgroundColor: chartData.brans.backgroundColor, borderColor: '#f8fafc', borderWidth: 4 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '60%',
+                    plugins: { legend: { position: 'bottom', labels: { padding: 20, font: { size: 14 } } }, tooltip: { callbacks: { label: (c) => `${c.label}: %${c.raw}` } } }
+                }
+            });
+            function updateChart(type) {
+                const data = chartData[type];
+                puanlamaChart.data.labels = data.labels;
+                puanlamaChart.data.datasets[0].data = data.data;
+                puanlamaChart.data.datasets[0].backgroundColor = data.backgroundColor;
+                puanlamaChart.update();
+            }
+            const btnBrans = document.getElementById('btn-brans');
+            const btnDil = document.getElementById('btn-dil');
+            btnBrans.addEventListener('click', () => {
+                updateChart('brans');
+                btnBrans.classList.add('bg-teal-600', 'text-white'); btnBrans.classList.remove('text-teal-600');
+                btnDil.classList.remove('bg-teal-600', 'text-white'); btnDil.classList.add('text-teal-600');
+            });
+            btnDil.addEventListener('click', () => {
+                updateChart('dil');
+                btnDil.classList.add('bg-teal-600', 'text-white'); btnDil.classList.remove('text-teal-600');
+                btnBrans.classList.remove('bg-teal-600', 'text-white'); btnBrans.classList.add('text-teal-600');
+            });
+
+            // Tab Comparison Logic
+            const btnKpss = document.getElementById('btn-kpss');
+            const btnMsu = document.getElementById('btn-msu');
+            const kpssContent = document.getElementById('kpss-comparison');
+            const msuContent = document.getElementById('msu-comparison');
+            function switchTab(activeBtn, inactiveBtn, activeContent, inactiveContent) {
+                 activeBtn.classList.add('active'); inactiveBtn.classList.remove('active');
+                 activeContent.classList.remove('hidden'); activeContent.classList.add('fade-in');
+                 inactiveContent.classList.add('hidden');
+            }
+            btnKpss.addEventListener('click', () => switchTab(btnKpss, btnMsu, kpssContent, msuContent));
+            btnMsu.addEventListener('click', () => switchTab(btnMsu, btnKpss, msuContent, kpssContent));
+            btnKpss.click();
+
+            // Accordion Logic (Removed as it's replaced by Gemini feature)
+            
+            // Mobile Nav Logic
+            const mobileNav = document.getElementById('mobile-nav');
+            mobileNav.addEventListener('change', () => { window.location.hash = mobileNav.value; });
+            
+            // Active Nav Link on Scroll
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+            window.addEventListener('scroll', () => {
+                let current = '';
+                sections.forEach(section => {
+                    if (pageYOffset >= section.offsetTop - 80) { current = section.getAttribute('id'); }
+                });
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').includes(current)) { link.classList.add('active'); }
+                });
+            });
+
+            // --- Gemini API Integration ---
+            const generatePlanBtn = document.getElementById('generate-plan-btn');
+            const geminiLoader = document.getElementById('gemini-loader');
+            const geminiResultDiv = document.getElementById('gemini-plan-result');
+            const weakSubjectsInput = document.getElementById('weak-subjects');
+            const studyHoursInput = document.getElementById('study-hours');
+
+            generatePlanBtn.addEventListener('click', async () => {
+                const weakSubjects = weakSubjectsInput.value;
+                const studyHours = studyHoursInput.value;
+
+                if (!weakSubjects || !studyHours) {
+                    geminiResultDiv.textContent = 'Lütfen tüm alanları doldurun.';
+                    geminiResultDiv.classList.remove('hidden');
+                    return;
+                }
+
+                geminiLoader.classList.remove('hidden');
+                geminiResultDiv.classList.add('hidden');
+                geminiResultDiv.textContent = '';
+
+                const prompt = `AGS (Akademi Giriş Sınavı) için hazırlanan bir öğretmen adayına özel, haftalık bir çalışma planı oluştur. Bu planı oluştururken aşağıdaki kişisel bilgileri dikkate al:
+                - Zorlandığı Konular: ${weakSubjects}
+                - Haftalık Ayırabileceği Süre: ${studyHours} saat
+
+                Planı oluştururken şunları yap:
+                1. Haftanın her günü için (Pazartesi'den Pazar'a) bir program çıkar.
+                2. Zorlandığı konulara daha fazla ağırlık ver.
+                3. Konu çalışma, soru çözümü ve tekrar için dengeli bir zaman dağılımı yap.
+                4. Her gün için motive edici kısa bir ipucu ekle.
+                5. Çıktıyı başlıklar, alt başlıklar ve listeler kullanarak kolay okunabilir bir formatta (Markdown benzeri) sun. Başlıklar için '##' ve liste elemanları için '*' kullan.`;
+
+                try {
+                    let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                    const payload = { contents: chatHistory };
+                    const apiKey = ""; 
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API isteği başarısız: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        geminiResultDiv.textContent = text;
+                    } else {
+                        throw new Error("API'den geçerli bir yanıt alınamadı.");
+                    }
+                } catch (error) {
+                    console.error("Gemini API Hatası:", error);
+                    geminiResultDiv.textContent = 'Bir hata oluştu. Lütfen daha sonra tekrar deneyin. Hata Detayı: ' + error.message;
+                } finally {
+                    geminiLoader.classList.add('hidden');
+                    geminiResultDiv.classList.remove('hidden');
+                }
+            });
+
+            // Question Generation Logic
+            const questionModal = document.getElementById('question-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const questionModalTitle = document.getElementById('question-modal-title');
+            const questionModalContent = document.getElementById('question-modal-content');
+            const generateQuestionBtns = document.querySelectorAll('.generate-question-btn');
+
+            generateQuestionBtns.forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const topic = e.target.dataset.topic;
+                    questionModalTitle.textContent = `✨ ${topic} - Örnek Soru`;
+                    questionModalContent.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+                    questionModal.classList.remove('hidden');
+
+                    const prompt = `Türkiye'deki öğretmen adayları için yapılan AGS (Akademi Giriş Sınavı) kapsamında, "${topic}" konusuyla ilgili, 4 şıklı (A, B, C, D) çoktan seçmeli bir soru hazırla. Sorunun ardından doğru cevabı ve cevabın kısa bir açıklamasını belirt. Çıktıyı net ve anlaşılır bir şekilde formatla.`;
+                    
+                    try {
+                        let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                        const payload = { contents: chatHistory };
+                        const apiKey = "";
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (!response.ok) throw new Error(`API isteği başarısız: ${response.status}`);
+                        
+                        const result = await response.json();
+                        if (result.candidates && result.candidates[0].content.parts[0].text) {
+                            questionModalContent.textContent = result.candidates[0].content.parts[0].text;
+                        } else {
+                            throw new Error("API'den geçerli bir yanıt alınamadı.");
+                        }
+
+                    } catch (error) {
+                        console.error("Soru üretme hatası:", error);
+                        questionModalContent.textContent = 'Soru üretilirken bir hata oluştu. Lütfen tekrar deneyin.';
+                    }
+                });
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                questionModal.classList.add('hidden');
+            });
+            
+            questionModal.addEventListener('click', (e) => {
+                if (e.target === questionModal) {
+                    questionModal.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
